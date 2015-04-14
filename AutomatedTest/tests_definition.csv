@@ -1,0 +1,6 @@
+searchTerms, filterType,result1,result2,result3,result4,result5,result6,result7,result8,result9,result10
+mexico,,publicurl=/mexico.htm,,,,,,,,,
+mexico,countries,publicurl=/mexico.htm,,,,,,,,,
+mexico,datasets,publicurl=http://dx.doi.org/10.1787/data-00590-en,title{contains}mexico,metadata{contains}mexico,,,,,,,
+mexico,publications,publicurl=http://dx.doi.org/10.1787/eco_surveys-mex-2015-en,title{contains}mexico+{sort}publicationdate,metadata{contains}mexico,,,,,,,
+gross domestic product,publications,publicurl=http://dx.doi.org/10.1787/mei-v2015-3-en,publicurl=http://dx.doi.org/10.1787/mei-v2015-2-en,publicurl=http://dx.doi.org/10.1787/mei-v2015-1-en,publicurl=http://dx.doi.org/10.1787/na_glance-2014-en,publicurl=http://dx.doi.org/10.1787/mei-v2014-12-en,publicurl=http://dx.doi.org/10.1787/mei-v2014-11-en,publicurl=http://dx.doi.org/10.1787/mei-v2014-10-en,publicurl=http://dx.doi.org/10.1787/mei-v2014-9-en,publicurl=http://dx.doi.org/10.1787/mei-v2014-8-en,publicurl=http://dx.doi.org/10.1787/9789264211391-en
