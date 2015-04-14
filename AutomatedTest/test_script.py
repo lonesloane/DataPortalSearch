@@ -3,18 +3,19 @@ import urllib2
 import pprint
 import xml.etree.ElementTree as eT
 import datetime
+import os
 
-DEBUG = True
+DEBUG = False
 VERBOSE = False
 FUZZY_SEARCH = False
-SAVE_XML = True
+SAVE_XML = False
 
 SEARCH_TERMS = 0
 FILTER = 1
 ns = {'exalead': 'exa:com.exalead.search.v10'}
 # metadata_keys contains the metadata fields used for the match
 metadata_keys = ['description', 'ispartof_serial_description_en', 'indicator_group_title']
-
+RESULT_PATH = 'TestResults'
 
 def buildSearchUrl(searchTerms, filterType=None, doFuzzy=False):
     """build valid search url based on input parameters
@@ -217,10 +218,81 @@ def validate(results, testScenario, tstNb):
     if DEBUG: print '{testScenario} => score: {score}'.format(testScenario=testScenario, score=score)
     return score
 
+
+def rundate(f):
+    dt = f.split('.')[0][9:]
+    dt_run = datetime.datetime.strptime(dt,'%Y-%m-%d_%H-%M-%S')
+    return dt_run
+
+
+def loadRunResults(opt=None):
+    # get list of files in TestResults
+    lst = [(f, rundate(f)) for f in os.listdir(RESULT_PATH) if os.path.isfile(os.path.join(RESULT_PATH, f))]
+    lst.sort(reverse=True)
+    if VERBOSE: print 'list of TestResult files:', lst
+    if opt == 'beforelast':
+        if not len(lst) > 1:
+            return None
+        runfile = lst[1][0]
+    else:
+        runfile = lst[0][0]
+
+    return runfile
+
+
+def parseResultXml(xml_file_name):
+    res = {}
+    if VERBOSE: print 'xml_file_name:', xml_file_name
+    root = eT.parse(RESULT_PATH+'/'+xml_file_name)
+    for testCase in root.iter('TestCase'):
+        if VERBOSE: print testCase.attrib
+        for testScenario in testCase.iter('Scenario'):
+            if VERBOSE: print testScenario.attrib
+            res[testCase.attrib['Search_Terms']
+                + testCase.attrib['Filter']
+                + testScenario.attrib['Text']] = testScenario.attrib['Score']
+    return res
+
+
+def CompareLastRuns():
+    lastrunfile = loadRunResults()
+    beforelastrunfile = loadRunResults(opt='beforelast')
+
+    if beforelastrunfile is None:
+        print "No previous test run found. Comparison impossible."
+        import sys
+        sys.exit(0)
+
+    lastrun = parseResultXml(lastrunfile)
+    beforelastrun = parseResultXml(beforelastrunfile)
+    if VERBOSE: pprint.pprint(lastrun)
+    if VERBOSE: pprint.pprint(beforelastrun)
+
+    for test in lastrun:
+        print test
+        if test not in beforelastrun:
+            print "Test not found in previous run:", test
+        else:
+            print "comparing test runs"
+            if int(lastrun[test]) == int(beforelastrun[test]):  # same as before, nothing to report
+                print 'same as before, nothing to report'
+                continue
+            if int(lastrun[test]) > int(beforelastrun[test]):   # better than before
+                print "Improved test:{0}. Previous score: {1}. Current score: {2}".format(test,
+                                                                                          beforelastrun[test],
+                                                                                          lastrun[test])
+            if int(lastrun[test]) < int(beforelastrun[test]):   # worse than before
+                print "Degraded test:{0}. Previous score: {1}. Current score: {2}".format(test,
+                                                                                          beforelastrun[test],
+                                                                                          lastrun[test])
+            else:
+                print "Something went wrong..."
+
+
 # create results XML
 xmlResult = eT.Element('SearchPerformanceIndex')
 
-# Read tests_definition.csv file
+# Read tests definition csv file
 fTest = open('DP_Search_test-scenarios.csv', mode='r')
 headers = fTest.readline()  # first line contains column headers
 
@@ -238,7 +310,8 @@ for testLine in fTest:  # 1 test scenario per line
     if DEBUG: print 'TestCase: ', testCase[0:120]
     if VERBOSE: print 'queryUrl: ', queryUrl
     results = getSearchResults(queryUrl)
-    for i in range(10):  # go through the 10 possible 'test results' per test scenario in each line of tests_definition.csv
+    for i in range(10):     # go through the 10 possible 'test results' per test scenario
+                            # in each line of tests definition csv file
         testScenario = testCase[i+2]
         if not isEmpty(testScenario):
             xmlTestCaseScenario = eT.SubElement(xmlTestCase, 'Scenario')
@@ -255,6 +328,9 @@ if DEBUG: print '\n*************************************'
 if DEBUG: print 'Final test score: {score}'.format(score=totalScore)
 if DEBUG: print '*************************************'
 xmlResult.set('Score', str(totalScore))
-xmlFileName = 'Results/test_run_' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + '.xml'
+xmlFileName = 'TestResults/test_run_' + datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + '.xml'
+xmlResult.set('date_run', xmlFileName)
 if SAVE_XML: eT.ElementTree(xmlResult).write(xmlFileName)
+
+CompareLastRuns()
 
