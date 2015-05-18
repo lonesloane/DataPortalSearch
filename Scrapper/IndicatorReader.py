@@ -3,7 +3,6 @@ import pprint
 import base64
 import xml.etree.ElementTree as eT
 import csv
-import io
 
 DEBUG = True
 VERBOSE = False

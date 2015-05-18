@@ -4,20 +4,22 @@ import pprint
 import xml.etree.ElementTree as eT
 import datetime
 import os
+import io
 
 DEBUG = False
 VERBOSE = False
-FUZZY_SEARCH = False
-SAVE_XML = False
+FUZZY_SEARCH = True
+SAVE_XML = True
 
 SEARCH_TERMS = 0
-FILTER = 1
+LANG = 1
+FILTER = 2
 ns = {'exalead': 'exa:com.exalead.search.v10'}
 # metadata_keys contains the metadata fields used for the match
 metadata_keys = ['description', 'ispartof_serial_description_en', 'indicator_group_title']
 RESULT_PATH = 'TestResults'
 
-def buildSearchUrl(searchTerms, filterType=None, doFuzzy=False):
+def buildSearchUrl(searchTerms, filterType=None, lang=None, doFuzzy=False):
     """build valid search url based on input parameters
 
     :param searchTerms:
@@ -25,6 +27,11 @@ def buildSearchUrl(searchTerms, filterType=None, doFuzzy=False):
     :param doFuzzy:
     :return: search url to submit to Exalead search API
     """
+    if lang is None:
+        languageFilter = '&r=f/language/en'
+    else:
+        languageFilter = '&r=f/language/{lang}'.format(lang=lang)
+
     if filterType is None or len(filterType) == 0:
         typeFilter = ''
     else:
@@ -39,8 +46,6 @@ def buildSearchUrl(searchTerms, filterType=None, doFuzzy=False):
     else:
         nbfuzzy = len(searchTerms)-1
         searchParam = '&q=FUZZYAND%2F-{n}({s})'.format(s=sexp, n=nbfuzzy)
-
-    languageFilter = '&r=%2Bf%2Flanguage%2Fen'
 
     queryUrl = 'http://t4-pub-1:97/search-api-dev/?hf=10&b=0{languageFilter}{typeFilter}{searchParam}&sl=sl_dp&st=st_dp&l=en'\
         .format(typeFilter=typeFilter, languageFilter=languageFilter, searchParam=searchParam)
@@ -269,13 +274,13 @@ def CompareLastRuns():
     if VERBOSE: pprint.pprint(beforelastrun)
 
     for test in lastrun:
-        print test
+        if VERBOSE: print 'comparing test:',test
         if test not in beforelastrun:
-            print "Test not found in previous run:", test
+            if DEBUG: print "Test not found in previous run:", test
         else:
-            print "comparing test runs"
+            if VERBOSE: print "comparing test runs"
             if int(lastrun[test]) == int(beforelastrun[test]):  # same as before, nothing to report
-                print 'same as before, nothing to report'
+                if DEBUG: print 'same as before, nothing to report'
                 continue
             if int(lastrun[test]) > int(beforelastrun[test]):   # better than before
                 print "Improved test:{0}. Previous score: {1}. Current score: {2}".format(test,
@@ -293,7 +298,7 @@ def CompareLastRuns():
 xmlResult = eT.Element('SearchPerformanceIndex')
 
 # Read tests definition csv file
-fTest = open('DP_Search_test-scenarios.csv', mode='r')
+fTest = io.open('DP_Search_test-scenarios.csv', mode='r', encoding='utf-16')
 headers = fTest.readline()  # first line contains column headers
 
 totalScore = 0
@@ -305,14 +310,15 @@ for testLine in fTest:  # 1 test scenario per line
     searchTerms = testCase[SEARCH_TERMS].split()
     xmlTestCase.set('Search_Terms', ','.join(searchTerms))
     xmlTestCase.set('Filter', testCase[FILTER])
-    queryUrl = buildSearchUrl(searchTerms, testCase[FILTER], FUZZY_SEARCH)
+    xmlTestCase.set('lang', testCase[LANG])
+    queryUrl = buildSearchUrl(searchTerms, filterType=testCase[FILTER], lang=testCase[LANG], doFuzzy=FUZZY_SEARCH)
     if DEBUG: print '*************************************'
     if DEBUG: print 'TestCase: ', testCase[0:120]
     if VERBOSE: print 'queryUrl: ', queryUrl
     results = getSearchResults(queryUrl)
     for i in range(10):     # go through the 10 possible 'test results' per test scenario
                             # in each line of tests definition csv file
-        testScenario = testCase[i+2]
+        testScenario = testCase[i+3]
         if not isEmpty(testScenario):
             xmlTestCaseScenario = eT.SubElement(xmlTestCase, 'Scenario')
             xmlTestCaseScenario.set('Text', testScenario)
